@@ -10,8 +10,29 @@ if (!process.env.REFRESH_TOKEN_SECRET) {
 }
 
 // In-memory cache to rescue simultaneous request race-conditions during token rotation.
-// Maps oldRefreshToken -> { accessToken, refreshToken, timestamp }
+// Maps oldRefreshToken -> { accessToken, refreshToken, vendorMode, vendorModeChanged, timestamp }
 const refreshCache = new Map();
+
+/**
+ * Intercepts res.json to inject _meta.auth when session was refreshed.
+ * Leaves non-refreshed / normal responses untouched.
+ */
+export const attachResponseMeta = (res, authMeta) => {
+  res.__authMeta = authMeta;
+  if (res.__authMetaAttached) return;
+  res.__authMetaAttached = true;
+
+  const originalJson = res.json.bind(res);
+  res.json = function (data) {
+    if (data && typeof data === "object" && !Array.isArray(data)) {
+      data._meta = {
+        ...(data._meta || {}),
+        auth: res.__authMeta,
+      };
+    }
+    return originalJson(data);
+  };
+};
 
 export const authenticate = async (req, res, next) => {
   const accessToken = req.cookies.access_token;
@@ -39,14 +60,22 @@ export const authenticate = async (req, res, next) => {
     });
   };
 
+  let decodedOldAccessToken = null;
+
   if (accessToken) {
     try {
       const decoded = jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET);
       req.user = decoded;
       return next();
     } catch (error) {
-
+      // Access token is expired or invalid. Decode payload to extract previous vendor_mode.
+      try {
+        decodedOldAccessToken = jwt.decode(accessToken);
+      } catch (e) {
+        decodedOldAccessToken = null;
+      }
     }
+
   }
 
   if (!refreshToken) {
@@ -71,6 +100,14 @@ export const authenticate = async (req, res, next) => {
     if (Date.now() - cached.timestamp < 15000) {
       req.user = jwt.verify(cached.accessToken, process.env.ACCESS_TOKEN_SECRET);
       attachCookies(cached.accessToken, cached.refreshToken);
+
+      req.authMeta = {
+        refreshed: true,
+        vendorModeChanged: Boolean(cached.vendorModeChanged),
+        vendorMode: cached.vendorMode,
+      };
+      attachResponseMeta(res, req.authMeta);
+
       return next();
     }
   }
@@ -89,6 +126,13 @@ export const authenticate = async (req, res, next) => {
       return res.status(401).json({ message: "Session expired. Please login again." });
     }
 
+    // Determine current and old vendor mode
+    const currentVendorMode = user.Vendor?.vendor_mode ?? 0;
+    const oldVendorMode = decodedOldAccessToken?.vendor_mode ?? decodedOldAccessToken?.vendorMode;
+    const vendorModeChanged = (oldVendorMode !== undefined && oldVendorMode !== null)
+      ? Number(oldVendorMode) !== Number(currentVendorMode)
+      : true; // When access token was purged/deleted, treat as changed so frontend syncs
+
     // Generate new tokens (Rotation)
     const { accessToken: newAccessToken, refreshToken: newRefreshToken } = generateAuthTokens(user);
 
@@ -102,6 +146,8 @@ export const authenticate = async (req, res, next) => {
     refreshCache.set(refreshToken, {
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
+      vendorMode: currentVendorMode,
+      vendorModeChanged,
       timestamp: Date.now(),
     });
 
@@ -114,6 +160,13 @@ export const authenticate = async (req, res, next) => {
 
     req.user = decoded;
     attachCookies(newAccessToken, newRefreshToken);
+
+    req.authMeta = {
+      refreshed: true,
+      vendorModeChanged,
+      vendorMode: currentVendorMode,
+    };
+    attachResponseMeta(res, req.authMeta);
 
     next();
   } catch (err) {
