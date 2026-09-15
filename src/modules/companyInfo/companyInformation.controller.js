@@ -134,6 +134,17 @@ export const saveAccountInfo = async (req, res) => {
       updatedVendor.city_name = oem_address.city_name;
 
       engagementEvent.updateEsellerProfile(updatedVendor);
+
+      if (form_type === "company_detail_from") {
+        engagementEvent.trackCompanyInfoEvent(req.user, {
+          ...formData,
+          country_name: updatedVendor.country_name,
+          state_name: updatedVendor.state_name,
+          city_name: updatedVendor.city_name,
+        }).catch((err) => {
+          console.error("[MoEngage Error] Failed to fire trackCompanyInfoEvent in saveAccountInfo:", err);
+        });
+      }
     }
 
     return res

@@ -1,6 +1,6 @@
 import express from "express";
 import multer from "multer";
-import { getCompanyInfo, searchLocation, saveAccountInfo } from "./companyInformationController.js";
+import { getCompanyInfo, searchLocation, saveAccountInfo } from "./companyInformation.controller.js";
 
 const router = express.Router();
 const upload = multer({ 

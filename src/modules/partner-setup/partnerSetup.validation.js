@@ -1,9 +1,10 @@
 import { body, validationResult } from "express-validator";
+import StatusCodes from "../../utilis/statusCodes.js";
 
 const validateRequest = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(422).json({
+    return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({  
       success: false,
       errors: errors.array(),
     });
