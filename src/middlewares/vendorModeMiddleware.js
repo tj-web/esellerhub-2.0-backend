@@ -1,4 +1,5 @@
 import { AppError } from "../utilis/appError.js";
+import { attachResponseMeta } from "./authMiddleware.js";
 
 /**
  * Access rules based on vendor_mode
@@ -18,7 +19,7 @@ const ACCESS_RULES = {
   1: {
     blockedPaths: [
       "/orders",
-      "/agreement",
+      "/eseller-agreement",
     ],
     message: "This feature is restricted for your account mode."
   },
@@ -47,6 +48,11 @@ export const vendorModeMiddleware = (req, res, next) => {
     const isAllowed = rules.allowedPaths.some(p => relativePath.startsWith(p));
     if (isAllowed) return next();
     
+    attachResponseMeta(res, {
+      refreshed: false,
+      vendorModeChanged: true,
+      vendorMode,
+    });
     return next(new AppError(rules.message || "Access denied for current vendor mode.", 403));
   }
 
@@ -54,6 +60,11 @@ export const vendorModeMiddleware = (req, res, next) => {
   if (rules.blockedPaths) {
     const isBlocked = rules.blockedPaths.some(p => relativePath.startsWith(p));
     if (isBlocked) {
+      attachResponseMeta(res, {
+        refreshed: false,
+        vendorModeChanged: true,
+        vendorMode,
+      });
       return next(new AppError(rules.message || "Access denied for current vendor mode.", 403));
     }
   }
