@@ -673,7 +673,7 @@ class EngagementEvent {
         vendor_id: resolved.vendorId,
         email: resolved.email,
         action: { name: "acd", params: {} },
-        redirect_uri: `${mainsiteUrl}/leads/${leadId}`,
+        redirect_uri: `${mainsiteUrl}/manage-leads/${leadId}`,
         expiration_date: expirationDate,
       };
 
