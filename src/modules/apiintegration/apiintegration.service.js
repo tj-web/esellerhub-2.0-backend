@@ -178,7 +178,7 @@ export const handleCreateWebhook = async ({
     headers: JSON.stringify(["Content-Type: application/json"]),
     request_url: webhook_url,
     http_action: "POST",
-    format: JSON.stringify(Array.isArray(fields) ? fields : []),
+    format: JSON.stringify(fields && typeof fields === "object" ? fields : {}),
     default_format: 1,
     status: 1,
   };
@@ -250,7 +250,7 @@ export const handleverifyWebhook = async ({ vendor_id, webhook_url, auth_type, c
 
     const response = await axios.post(
       webhook_url,
-      { event: "test_connection", fields: Array.isArray(fields) ? fields : [] },
+      { event: "test_connection", fields: fields && typeof fields === "object" ? fields : {} },
       {
         timeout: 10000,
         validateStatus: () => true,
@@ -271,7 +271,7 @@ export const handleverifyWebhook = async ({ vendor_id, webhook_url, auth_type, c
         headers: JSON.stringify(["Content-Type: application/json"]),
         request_url: webhook_url,
         http_action: "POST",
-        format: JSON.stringify(Array.isArray(fields) ? fields : []),
+        format: JSON.stringify(fields && typeof fields === "object" ? fields : {}),
         default_format: 1,
         status: 0,
       };
