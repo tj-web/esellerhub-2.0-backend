@@ -46,7 +46,7 @@ export const getVendorOverview = async (req, res) => {
     const manager_data = {
       manager_name: managerData?.name ?? "Varun Sharma",
       manager_email: managerData?.email ?? "varun.sharma@techjockey.com",
-      manager_phone: managerData?.phone ?? "+91-8040265252",
+      manager_phone: managerData?.phone ?? "+91-08040265252",
       manager_img: managerData?.image ?? null,
     };
 
