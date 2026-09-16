@@ -10,11 +10,14 @@ steps:
       echo "Creating deployment artifact..."
 
       tar \
+        --warning=no-file-changed \
         --exclude=.git \
         --exclude=node_modules \
         --exclude=vendor \
         --exclude=release.tar.gz \
-        -czf release.tar.gz .
+        -czf /tmp/release.tar.gz .
+        
+      mv /tmp/release.tar.gz ./release.tar.gz
 
 # 2️⃣ Maintain current + previous artifact in bucket
 - name: gcr.io/cloud-builders/gsutil
