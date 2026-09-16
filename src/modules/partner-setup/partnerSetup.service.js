@@ -16,6 +16,7 @@ import ProductScreenshot from "../../models/productScreenshot.model.js";
 import Setting from "../../models/websiteSetting.model.js";
 import { getVendorData } from "../companyInfo/companyInformation.service.js";
 import { uploadFileToS3 } from "../../utilis/s3Uploader.js";
+import engagementEvent from "../../helpers/engagementEvent.js";
 
 // Ensure Associations
 VendorBrandRelation.belongsTo(Brand, {
@@ -577,6 +578,7 @@ export const saveProductSetup = async (vendor_id, data, files = []) => {
   };
 
   let targetProductId = product_id ? parseInt(product_id, 10) : null;
+  const isNewProduct = !targetProductId;
 
   if (!targetProductId) {
     // Lookup MAX_SLUG_ID from tbl_website_settings
@@ -801,6 +803,42 @@ export const saveProductSetup = async (vendor_id, data, files = []) => {
           created_at: new Date(),
         });
       }
+    }
+  }
+
+  if (isNewProduct) {
+    try {
+      const createdProduct = await Product.findByPk(targetProductId, { raw: true });
+      let brandObj = null;
+      if (createdProduct && createdProduct.brand_id) {
+        brandObj = await Brand.findByPk(createdProduct.brand_id, { raw: true });
+      }
+      let categoryObj = null;
+      const prodCat = await ProductCategory.findOne({
+        where: { product_id: targetProductId, is_primary: 1 },
+        raw: true,
+      });
+      if (prodCat && prodCat.category_id) {
+        categoryObj = await Category.findByPk(prodCat.category_id, { raw: true });
+      }
+
+      const productInfoForEvent = {
+        product_id: targetProductId,
+        product_name: createdProduct?.product_name || "",
+        product_slug: createdProduct?.slug || "",
+        brand_id: brandObj?.brand_id || "",
+        brand_name: brandObj?.brand_name || "",
+        brand_slug: brandObj?.slug || "",
+        category_id: categoryObj?.category_id || "",
+        category_name: categoryObj?.category_name || "",
+        category_slug: categoryObj?.slug || "",
+      };
+
+      engagementEvent.oemProfileCompleteStage1({ vendor_id }, productInfoForEvent).catch((err) => {
+        console.error("[MoEngage Error] Failed to fire oemProfileCompleteStage1:", err);
+      });
+    } catch (evtErr) {
+      console.error("[MoEngage Error] Error preparing oemProfileCompleteStage1:", evtErr.message);
     }
   }
 

@@ -193,6 +193,48 @@ class EngagementEvent {
   }
 
   /**
+   * Fires Company Information Event (Partner Setup Step 1 & Company Info module)
+   * @param {object} user - VendorAuth / Vendor object or req.user
+   * @param {object} companyData - Object containing company setup form fields or vendor profile info
+   */
+  async trackCompanyInfoEvent(user, companyData = {}) {
+    try {
+      if (!user) return;
+
+      const providerService = this.providerService;
+      if (!providerService) return;
+
+      const resolved = await this._resolveVendorDetails(user);
+      if (!resolved || !resolved.profileId) return;
+
+      const attributes = {
+        "Company Name": companyData.company_name || companyData.company || "",
+        "Designation": companyData.designation_name || companyData.designation || "",
+        "Company Website": companyData.company_website || companyData.website_url || "",
+        "Country": companyData.vendor_country || companyData.country_name || "",
+        "State": companyData.vendor_state || companyData.state_name || "",
+        "City": companyData.vendor_city || companyData.city_name || "",
+        "Pincode": companyData.vendor_pincode || companyData.pincode || "",
+        "Company Address": companyData.comp_address || companyData.company_address || companyData.billing_address || "",
+        "Legal Entity Name": companyData.legal_entry_name || companyData.legal_entity_name || "",
+        "Company Type": companyData.company_type || "",
+        "Billing Address": companyData.billing_address || "",
+        "Registered Under MSME Act 2006": companyData.msmed_act || "",
+        "I'm Contact Person": companyData.is_cont_prsn || companyData.is_contact_person ? 1 : 0,
+        "Contact Person Name": companyData.contact_prsn_name || companyData.cont_prsn_name || "",
+        "Contact Person Designation": companyData.contact_prsn_desg || companyData.cont_prsn_desg || "",
+        "Contact Person Email": companyData.contact_prsn_email || companyData.cont_prsn_email || "",
+        "Contact Person Phone": companyData.contact_prsn_phone || companyData.cont_prsn_phone || "",
+        "Date": new Date().toISOString().replace("T", " ").substring(0, 19),
+      };
+
+      return await providerService.trackEsellerEvent(resolved.profileId, "Company Information", attributes);
+    } catch (error) {
+      console.error("[Engagement Event Error] Failed to process trackCompanyInfoEvent:", error);
+    }
+  }
+
+  /**
    * Fires OEM Profile Complete-Stage 1 Event
    * @param {object} user - VendorAuth / Vendor object or req.user
    * @param {object} productInfo - Product details object containing product_id, product_name, slug, brand, category, etc.

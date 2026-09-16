@@ -8,6 +8,7 @@ import {
   searchMainBrands as searchMainBrandsServiceFn,
 } from "./partnerSetup.service.js";
 import { getCategoryList } from "../product/product.service.js";
+import engagementEvent from "../../helpers/engagementEvent.js";
 
 /**
  * GET Initial Partner Setup Data (Fetches company, brand, product setup statuses & prefill data)
@@ -37,25 +38,6 @@ export const getPartnerSetupInfo = async (req, res) => {
 };
 
 /**
- * GET Search Main Brands (For dropdown selection in Brand Setup step)
- */
-export const searchMainBrands = async (req, res) => {
-  try {
-    const { search = "", type = "public" } = req.query;
-    const brands = await searchMainBrandsServiceFn(search);
-
-    return res
-      .status(StatusCodes.SUCCESS)
-      .json(SystemResponse.success("Main brands fetched successfully", brands));
-  } catch (error) {
-    console.error("Error in searchMainBrands:", error);
-    return res
-      .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json(SystemResponse.internalServerError("Error in searching main brands", error.message));
-  }
-};
-
-/**
  * GET Search Categories (For Product Setup step in Partner Setup)
  */
 export const getSetupCategories = async (req, res) => {
@@ -75,6 +57,25 @@ export const getSetupCategories = async (req, res) => {
 };
 
 /**
+ * GET Search Main Brands (For dropdown selection in Brand Setup step)
+ */
+export const searchMainBrands = async (req, res) => {
+  try {
+    const { search = "", type = "public" } = req.query;
+    const brands = await searchMainBrandsServiceFn(search);
+
+    return res
+      .status(StatusCodes.SUCCESS)
+      .json(SystemResponse.success("Main brands fetched successfully", brands));
+  } catch (error) {
+    console.error("Error in searchMainBrands:", error);
+    return res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json(SystemResponse.internalServerError("Error in searching main brands", error.message));
+  }
+};
+
+/**
  * POST Step 1: Save Company Information
  */
 export const saveCompanySetup = async (req, res) => {
@@ -88,6 +89,11 @@ export const saveCompanySetup = async (req, res) => {
     }
 
     const result = await saveCompanySetupServiceFn(vendor_id, req.body);
+
+    // Fire MoEngage Company Information Event Action
+    engagementEvent.trackCompanyInfoEvent(req.user, req.body).catch((err) => {
+      console.error("[MoEngage Error] Failed to fire trackCompanyInfoEvent in saveCompanySetup:", err);
+    });
 
     return res
       .status(StatusCodes.SUCCESS)
