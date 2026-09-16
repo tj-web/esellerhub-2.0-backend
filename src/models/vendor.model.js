@@ -25,11 +25,6 @@ const Vendor = sequelize.define(
       allowNull: false,
     },
 
-    hash_string: {
-      type: DataTypes.STRING(200),
-      allowNull: false,
-    },
-
     dial_code: {
       type: DataTypes.STRING(5),
       allowNull: false,
@@ -54,6 +49,11 @@ const Vendor = sequelize.define(
     last_updated: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
+    },
+
+    hash_string: {
+      type: DataTypes.STRING(200),
+      allowNull: false,
     },
 
     vendor_type: {
@@ -115,12 +115,6 @@ const Vendor = sequelize.define(
     },
 
     is_temp: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 0,
-    },
-
-    vendor_plan_type: {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0,
