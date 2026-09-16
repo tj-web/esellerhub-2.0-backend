@@ -44,7 +44,8 @@ steps:
       set -e
 
       VMS=(
-        "crm:asia-south1-a"
+        "tjinternal1:asia-south1-a"
+        "tjinternal2:asia-south1-a"
       )
 
       for ITEM in "$${VMS[@]}"; do
