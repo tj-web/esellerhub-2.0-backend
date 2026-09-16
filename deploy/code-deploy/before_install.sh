@@ -1,4 +1,4 @@
-if [ -d /home/ubuntu/tj-eseller-node ]; then
-    rm -rf /home/ubuntu/tj-eseller-node
+if [ -d /home/ubuntu/esellerhub-2.0-backend ]; then
+    rm -rf /home/ubuntu/esellerhub-2.0-backend
 fi
-mkdir /home/ubuntu/tj-eseller-node
+mkdir /home/ubuntu/esellerhub-2.0-backend

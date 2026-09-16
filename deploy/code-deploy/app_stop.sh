@@ -1,4 +1,4 @@
-cd /home/ubuntu/tj-eseller-node
+cd /home/ubuntu/esellerhub-2.0-backend
 docker compose down || true
 cd ../
-rm -rf tj-eseller-node
+rm -rf esellerhub-2.0-backend
