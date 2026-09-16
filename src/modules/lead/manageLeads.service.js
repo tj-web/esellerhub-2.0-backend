@@ -2739,9 +2739,9 @@ export const getLeadCompetiterInsights = async (vendor_id, lead_id) => {
             raw: true
         });
 
-        if (!vendor || Number(vendor.lead_insight_display) !== 1) {
-            return [];
-        }
+        // if (!vendor || Number(vendor.lead_insight_display) !== 1) {
+        //     return [];
+        // }
 
         const lead = await TblLeads.findByPk(lead_id, {
             attributes: ['id', 'customer_id', 'category_id', 'product_id', 'product_name', 'original_parent_id'],
