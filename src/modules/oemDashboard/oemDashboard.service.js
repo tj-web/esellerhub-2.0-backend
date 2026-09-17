@@ -102,6 +102,7 @@ export const getVendorProducts = async (vendor_id) => {
             WHERE d.vendor_id = :vendor_id
             AND tp.status = 1
             AND tp.show_status = 1
+            AND tp.is_deleted = 0
             GROUP BY p.product_id
             ORDER BY product_name
         `;
