@@ -36,13 +36,7 @@ const ProductImage = sequelize.define(
       type: DataTypes.TINYINT(1),
       allowNull: false,
       defaultValue: 1,
-    },
-
-    dominant_color: {
-      type: DataTypes.TEXT,
-      allowNull: false,
-      defaultValue: "#fff",
-    },
+    }
   },
   {
     tableName: "tbl_product_image",
