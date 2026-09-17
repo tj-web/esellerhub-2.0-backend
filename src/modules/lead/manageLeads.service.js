@@ -999,7 +999,7 @@ export const getLeadDetails = async (vendor_id, leadId) => {
         leadJson.email = maskString(leadJson.email, 'email');
     }
 
-    if (isInternational || showContact || contactViewed) {
+    if (isInternational || contactViewed) {
         leadJson.show_contact_phone = leadJson.phone;
     } else {
         leadJson.phone = maskString(leadJson.phone, 'phone');
@@ -2545,7 +2545,11 @@ export const unlockContact = async (user, lead_id) => {
         }]
     });
 
-    if (!leadInfo) throw new Error("Lead not found");
+    if (!leadInfo) throw new AppError("Lead not found", StatusCodes.NOT_FOUND);
+
+    if (Number(leadInfo.is_show_contact) !== 1) {
+        throw new AppError("Please buy a plan to open contact", StatusCodes.BAD_REQUEST);
+    }
 
 
     if (leadInfo.is_contact_viewed === 0) {
