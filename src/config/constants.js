@@ -24,7 +24,7 @@ export const AUTOLOGIN_CIPHER_IV = "9sqrEgP2JlbAijGZ";
 
 // HS256 secret the legacy PHP eseller_app mobile client's session JWTs are signed with
 // (Authlib::validate_jswt). As of now hardcoded to match the PHP-issued value.
-export const ESELLER_APP_JWT_SECRET = "TokenByDeveloper";
+export const ESELLER_APP_JWT_SECRET = "CO3vn13S3p3Q7TFDPwEV738w";
 
 export const EMAIL_DLQ_NAME = "email.dlx";
 
