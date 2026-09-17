@@ -2781,89 +2781,89 @@ export const getLeadCompetiterInsights = async (vendor_id, lead_id) => {
             return [];
         }
 
-        const customerRelatedData = await getCustomerRelatedGuuids(
-            lead.customer_id
-        );
+        // const customerRelatedData = await getCustomerRelatedGuuids(
+        //     lead.customer_id
+        // );
 
-        const guuids = customerRelatedData
-            ?.map(item => item.guuid)
-            ?.filter(Boolean);
+        // const guuids = customerRelatedData
+        //     ?.map(item => item.guuid)
+        //     ?.filter(Boolean);
 
-        let relatedProducts = [];
+        // let relatedProducts = [];
 
-        if (guuids?.length) {
+        // if (guuids?.length) {
 
-            const activityQuery = [
-                {
-                    $match: {
-                        "feeds.guuid": {
-                            $in: guuids
-                        }
-                    }
-                },
+        //     const activityQuery = [
+        //         {
+        //             $match: {
+        //                 "feeds.guuid": {
+        //                     $in: guuids
+        //                 }
+        //             }
+        //         },
 
-                {
-                    $unwind: "$feeds"
-                },
+        //         {
+        //             $unwind: "$feeds"
+        //         },
 
-                {
-                    $match: {
-                        "feeds.page_info.category_id": String(lead.category_id),
+        //         {
+        //             $match: {
+        //                 "feeds.page_info.category_id": String(lead.category_id),
 
-                        "feeds.page_info.product_id": {
-                            $exists: true,
-                            $ne: null,
-                            $nin: [
-                                String(lead.product_id),
-                                Number(lead.product_id)
-                            ]
-                        }
-                    }
-                },
+        //                 "feeds.page_info.product_id": {
+        //                     $exists: true,
+        //                     $ne: null,
+        //                     $nin: [
+        //                         String(lead.product_id),
+        //                         Number(lead.product_id)
+        //                     ]
+        //                 }
+        //             }
+        //         },
 
-                {
-                    $group: {
-                        _id: "$feeds.page_info.product_id",
+        //         {
+        //             $group: {
+        //                 _id: "$feeds.page_info.product_id",
 
-                        product_id: {
-                            $first: "$feeds.page_info.product_id"
-                        },
+        //                 product_id: {
+        //                     $first: "$feeds.page_info.product_id"
+        //                 },
 
-                        product_name: {
-                            $first: "$feeds.page_info.product_name"
-                        },
+        //                 product_name: {
+        //                     $first: "$feeds.page_info.product_name"
+        //                 },
 
-                        visits: {
-                            $sum: 1
-                        }
-                    }
-                },
+        //                 visits: {
+        //                     $sum: 1
+        //                 }
+        //             }
+        //         },
 
-                {
-                    $project: {
-                        _id: 0,
-                        product_id: 1,
-                        product_name: 1,
-                        visits: 1
-                    }
-                },
+        //         {
+        //             $project: {
+        //                 _id: 0,
+        //                 product_id: 1,
+        //                 product_name: 1,
+        //                 visits: 1
+        //             }
+        //         },
 
-                {
-                    $sort: {
-                        visits: -1
-                    }
-                },
+        //         {
+        //             $sort: {
+        //                 visits: -1
+        //             }
+        //         },
 
-                {
-                    $limit: 20
-                }
-            ];
+        //         {
+        //             $limit: 20
+        //         }
+        //     ];
 
-            relatedProducts = await db
-                .collection('tracks')
-                .aggregate(activityQuery)
-                .toArray();
-        }
+        //     relatedProducts = await db
+        //         .collection('tracks')
+        //         .aggregate(activityQuery)
+        //         .toArray();
+        // }
 
         const MAX_RECOMMENDED_PRODUCTS = 3;
 
