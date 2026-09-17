@@ -38,15 +38,25 @@ const CALL_CONN_MAX_DAYS = 45;
 const CALL_MISS_MAX_DAYS = 10;
 const eligiblePlanIds = [ 46, 47, 48, 51, 52];
 
+// Reads IST wall-clock hour/minute directly via Intl, independent of the host process's own
+// OS timezone (unlike `new Date(now.toLocaleString(..., {timeZone})))`, which re-parses the
+// formatted string as host-local time and silently breaks on any server not itself set to IST).
+const getIstHourAndMinute = (date = new Date()) => {
+    const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Kolkata",
+        hour: "numeric",
+        minute: "numeric",
+        hour12: false,
+    }).formatToParts(date);
+    const hours = Number(parts.find((p) => p.type === "hour").value) % 24;
+    const minutes = Number(parts.find((p) => p.type === "minute").value);
+    return { hours, minutes };
+};
+
 const getWorkingHoursStatus = () => {
-    const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
+    const { hours, minutes } = getIstHourAndMinute();
     const timeValue = hours + minutes / 60;
-    if (timeValue >= 8 && timeValue <= 22) {
-        return true;
-    }
-    return false;
+    return timeValue >= 8 && timeValue <= 22;
 };
 
 const checkAnyConnected = async (lead_id) => {
@@ -54,6 +64,17 @@ const checkAnyConnected = async (lead_id) => {
         where: { lead_id: lead_id, call_status: 2 }
     });
     return !!connectedCall;
+};
+
+// The shared DB (written by the legacy PHP app) stores naive datetimes as IST wall-clock
+// values, but Sequelize's connection here uses its default "+00:00" timezone, so it reads
+// those values back as if they were UTC — shifting the resulting Date +5:30 into the future.
+// Rather than changing that global DB-wide default (which every other feature also relies on,
+// however it currently behaves), correct just the fields this call-permission check uses.
+const IST_MISREAD_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+const toCorrectIstInstant = (value) => {
+    const raw = new Date(value || new Date());
+    return new Date(raw.getTime() - IST_MISREAD_OFFSET_MS);
 };
 
 const addDaysToDate = (dateStr, days) => {
@@ -89,10 +110,11 @@ export const calculateLeadCallPermissions = async (leadJson) => {
         callDisableMsg = "Sorry! You do not have permission to view this content. Click on Upgrade Now to get access.";
     } else if (leadJson.acd_uuid) {
         const isWorkingHours = getWorkingHoursStatus();
-        const currTime = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+        const currTime = new Date();
+        const referenceDate = toCorrectIstInstant(leadJson.callback?.start_date || leadJson.created_at);
 
         if (leadJson.lead_type === 'DEMO') {
-            const maxTime = addWeekdaysToDate((leadJson.callback?.start_date || leadJson.created_at), 10);
+            const maxTime = addWeekdaysToDate(referenceDate, 10);
             if (currTime > maxTime && isWorkingHours) {
                 callDisableMsg = `Your call back period of 10 days is over. Please contact support for more details.`;
                 isCallAllowed = false;
@@ -103,7 +125,7 @@ export const calculateLeadCallPermissions = async (leadJson) => {
         } else {
             const isAnyConnected = await checkAnyConnected(leadJson.id);
             if (isAnyConnected) {
-                const maxTime = addDaysToDate((leadJson.callback?.start_date || leadJson.created_at), CALL_CONN_MAX_DAYS);
+                const maxTime = addDaysToDate(referenceDate, CALL_CONN_MAX_DAYS);
                 if (currTime > maxTime && isWorkingHours) {
                     callDisableMsg = `Your call back period of ${CALL_CONN_MAX_DAYS} days is over. Please contact support for more details.`;
                     isCallAllowed = false;
@@ -112,8 +134,8 @@ export const calculateLeadCallPermissions = async (leadJson) => {
                     isCallAllowed = false;
                 }
             } else {
-                const maxTime = addWeekdaysToDate((leadJson.callback?.start_date || leadJson.created_at), CALL_MISS_MAX_DAYS);
-                const callTime = new Date((leadJson.callback?.start_date || leadJson.created_at) || new Date());
+                const maxTime = addWeekdaysToDate(referenceDate, CALL_MISS_MAX_DAYS);
+                const callTime = referenceDate;
                 const callStatus = leadJson.callback ? leadJson.callback.call_status : null;
 
                 if (currTime > maxTime && callStatus != 5 && isWorkingHours) {

@@ -202,7 +202,6 @@ export const getOemPlans = async (vendor_id) => {
       "start_date",
       "end_date",
       "impressions",
-      "clicks",
       "profile_visits",
       "pi_status"
     ],
@@ -244,7 +243,7 @@ export const getOemPlans = async (vendor_id) => {
     end_date: row.end_date,
     pi_status: row.pi_status,
     impressions: row.impressions,
-    clicks: row.clicks,
+    clicks: 0,
     profile_visits: row.profile_visits || 0,
     plan_name: row.LeadsPlan?.plan_name || null,
     plan_type: row.LeadsPlan?.plan_type || null,

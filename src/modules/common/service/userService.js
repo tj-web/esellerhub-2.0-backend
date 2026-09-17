@@ -121,3 +121,19 @@ export const findUserByVendorId = async (vendorId) => {
   });
 };
 
+/* ================================
+   FIND USER FOR AUTO LOGIN (magic link)
+================================ */
+export const findUserForAutoLogin = async (profileId, vendorId, email, requireVerified) => {
+  return await VendorAuth.findOne({
+    where: {
+      id: profileId,
+      vendor_id: vendorId,
+      email,
+      is_deleted: 0,
+      ...(requireVerified && { email_verified: 1, status: 1 }),
+    },
+    include: [{ model: Vendor }],
+  });
+};
+

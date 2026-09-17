@@ -9,6 +9,7 @@ import {
   verifyEmail,
   sendOtp,
   verifyOtp,
+  autoLogin,
 } from "./auth.controller.js";
 import {
   validateLogin,
@@ -19,6 +20,7 @@ import {
   validateSendOtp,
   validateVerifyOtp,
   validateVerifyEmail,
+  validateAutoLogin,
 } from "./auth.validation.js";
 import { authenticate } from "../../middlewares/authMiddleware.js";
 import linkedinrouter from "./linkedin.routes.js";
@@ -34,6 +36,8 @@ router.post("/forgot-password", validateForgotPassword, forgotPassword);
 router.post("/reset-password", validateResetPassword, resetPassword);
 
 router.get("/verify-email", validateVerifyEmail, verifyEmail);
+
+router.get("/auto-login/:token", validateAutoLogin, autoLogin);
 
 router.post("/send-otp", validateSendOtp, sendOtp);
 

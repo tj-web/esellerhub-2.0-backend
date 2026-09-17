@@ -22,7 +22,8 @@ const LoginHistory = sequelize.define(
         "native_auth",
         "one_tap_login",
         "google_button",
-        "fb_button"
+        "fb_button",
+        "autologin_link"
       ),
       defaultValue: "native_auth",
     },

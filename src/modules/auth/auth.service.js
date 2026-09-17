@@ -1,5 +1,5 @@
 import sequelize from "../../db/connection.js";
-import { hashPassword, generateToken } from "../../helpers/cryptoHelper.js";
+import { hashPassword, generateToken, decodeData } from "../../helpers/cryptoHelper.js";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import {
@@ -8,6 +8,7 @@ import {
   createVendor,
   createVendorAuth,
   findUserByEmail,
+  findUserForAutoLogin,
   createVendorDetails,
   createVendorLeads,
 } from "../common/service/userService.js";
@@ -23,6 +24,7 @@ import StatusCodes from "../../utilis/statusCodes.js";
 import SystemResponse from "../../utilis/systemResponse.js";
 import { publishEmailToQueue } from "../../config/rabbitmq.producer.js";
 import engagementEvent from "../../helpers/engagementEvent.js";
+import { ESELLER_APP_JWT_SECRET } from "../../config/constants.js";
 
 export const handleResetPassword = async (token, newPassword) => {
   const record = await PasswordReset.findOne({
@@ -380,6 +382,100 @@ export const createLoginHistory = async (
     console.error("Login history error:", e);
     return null;
   }
+};
+
+const MICROTRANSACTION_ACTIONS = new Set([
+  "micro-transaction-auto-login",
+  "micro-transaction",
+  "micro-transaction-new-lead",
+]);
+
+/**
+ * Mirrors Authlib::verify_token — confirms the bearer JWT embedded in the autoLogin
+ * payload belongs to a currently-tracked eseller_app mobile session.
+ */
+const verifyMicrotransactionAuthToken = async (authToken) => {
+  if (!authToken) {
+    throw new AppError("Headers Authorization Token is missing", 400);
+  }
+
+  const rawToken = authToken.split(" ")[1];
+
+  let payload;
+  try {
+    payload = jwt.verify(rawToken, ESELLER_APP_JWT_SECRET, { algorithms: ["HS256"] });
+  } catch (e) {
+    throw new AppError("Token Expired", 400);
+  }
+
+  const email = payload?.data?.email;
+  const count = await LoginHistory.count({
+    where: { email_id: email, source: "eseller_app", auth_token: rawToken },
+  });
+  if (count === 0) {
+    throw new AppError("Token Expired", 400);
+  }
+};
+
+/**
+ * Decodes an autoLogin magic-link token, logs the vendor in, applies the
+ * per-action side effect, and returns the tokens + redirect target.
+ */
+export const autoLoginService = async (hashString, ip, deviceId) => {
+  let decoded;
+  try {
+    decoded = decodeData(hashString);
+  } catch (e) {
+    throw new AppError("This link is invalid. Please request a new login link.", 400);
+  }
+
+  if (!decoded.expiration_date || new Date(decoded.expiration_date) < new Date()) {
+    throw new AppError("This Link has been expired. Please request a new login link.", 400);
+  }
+
+  const { profile_id, vendor_id, email, action, redirect_uri } = decoded;
+  if (!profile_id || !vendor_id || !email || !action || !redirect_uri) {
+    throw new AppError("Required parameters are not supplied.", 400);
+  }
+
+  const isMicrotransaction = MICROTRANSACTION_ACTIONS.has(action.name);
+
+  if (action.name === "micro-transaction-auto-login") {
+    await verifyMicrotransactionAuthToken(decoded.auth_token);
+  }
+
+  const requireVerified = action.name !== "agreement_link";
+  const user = await findUserForAutoLogin(profile_id, vendor_id, email, requireVerified);
+  if (!user) {
+    throw new AppError("You are not authorised to access the portal.", 403);
+  }
+
+  const loginVia = isMicrotransaction ? (decoded.login_via || "native_auth") : "autologin_link";
+  const { accessToken, refreshToken } = generateAuthTokens(user);
+  await createLoginHistory(user, ip, deviceId, refreshToken, loginVia);
+
+  switch (action.name) {
+    case "confirm_demo":
+    case "review":
+    case "acd":
+    case "dashboard":
+    case "orders":
+    case "onboarding-process":
+    case "micro-transaction-auto-login":
+    case "micro-transaction":
+    case "micro-transaction-new-lead":
+      break;
+    case "agreement_link":
+      await Vendor.update(
+        { email_verified: 1, status: 1 },
+        { where: { id: vendor_id } }
+      );
+      break;
+    default:
+      throw new AppError(`Method ${action.name} is not defined.`, 400);
+  }
+
+  return { accessToken, refreshToken, user, redirect_uri };
 };
 
 /**

@@ -224,10 +224,10 @@ const Review = sequelize.define(
       defaultValue: DataTypes.NOW,
     },
 
-    social_profile: {
-      type: DataTypes.STRING(20),
-      allowNull: true,
-    },
+    // social_profile: {
+    //   type: DataTypes.STRING(20),
+    //   allowNull: true,
+    // },
 
     review_type: {
       type: DataTypes.TINYINT,

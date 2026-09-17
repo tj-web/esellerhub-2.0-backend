@@ -283,10 +283,10 @@ const OmsPiDetail = sequelize.define(
       type: DataTypes.STRING(191),
       allowNull: true,
     },
-    clicks: {
-      type: DataTypes.STRING(191),
-      allowNull: true,
-    },
+    // clicks: {
+    //   type: DataTypes.STRING(191),
+    //   allowNull: true,
+    // },
     profile_visits: {
       type: DataTypes.STRING(191),
       allowNull: true,

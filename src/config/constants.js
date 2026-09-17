@@ -17,6 +17,15 @@ export const AWS_paths = () => {
   };
 };
 
+// AES-128-CBC key/IV for autoLogin link tokens, matching the legacy PHP encode/decodeData.
+// As of now hardcoded to match the PHP-issued value; move to a secret store when rotated.
+export const AUTOLOGIN_CIPHER_KEY = "9sqrEgP2JlbAijGZMH1fssfx0Lc9744Y";
+export const AUTOLOGIN_CIPHER_IV = "9sqrEgP2JlbAijGZ";
+
+// HS256 secret the legacy PHP eseller_app mobile client's session JWTs are signed with
+// (Authlib::validate_jswt). As of now hardcoded to match the PHP-issued value.
+export const ESELLER_APP_JWT_SECRET = "TokenByDeveloper";
+
 export const EMAIL_DLQ_NAME = "email.dlx";
 
 export const EMAIL_QUEUE_PRIORITY = {
