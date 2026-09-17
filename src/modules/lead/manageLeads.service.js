@@ -306,7 +306,8 @@ export const getLeads = async (vendor_id, post) => {
         limit: parseInt(post.limit) || 10,
         page: parseInt(post.page) || 0,
         srch_state: post.srch_state || '',
-        srch_city: post.srch_city || ''
+        srch_city: post.srch_city || '',
+        current_plan: post.current_plan || '',
     };
 
     const offset = filters.page * filters.limit;
@@ -388,6 +389,35 @@ export const getLeads = async (vendor_id, post) => {
 
     if (filters.srch_city) {
         whereClause.city = filters.srch_city;
+    }
+
+    // Filter for current active plan leads only
+    if (filters.current_plan === 'true' || filters.current_plan === true || filters.current_plan === '1') {
+        const currentDate = new Date().toISOString().split('T')[0];
+
+        // 1. Find all active plans for this vendor
+        const activePlans = await OmsPiDetail.findAll({
+            where: {
+                vendor_id: vendor_id,
+                pi_status: 3,
+                [Op.or]: [
+                    { end_date: null },
+                    { end_date: { [Op.gte]: currentDate } }
+                ]
+            },
+            attributes: ['id'],
+            raw: true
+        });
+
+        const activePiIds = activePlans.map(p => p.id);
+
+        // 2. Filter leads by oms_pi_id matching those active plan IDs
+        if (activePiIds.length > 0) {
+            whereClause.oms_pi_id = { [Op.in]: activePiIds };
+        } else {
+            // Vendor has no active eligible plan -> return 0 leads
+            whereClause.oms_pi_id = -1;
+        }
     }
 
     const { count, rows } = await TblLeads.findAndCountAll({
@@ -999,7 +1029,7 @@ export const getLeadDetails = async (vendor_id, leadId) => {
         leadJson.email = maskString(leadJson.email, 'email');
     }
 
-    if (isInternational || showContact || contactViewed) {
+    if (isInternational || contactViewed) {
         leadJson.show_contact_phone = leadJson.phone;
     } else {
         leadJson.phone = maskString(leadJson.phone, 'phone');
@@ -2545,7 +2575,11 @@ export const unlockContact = async (user, lead_id) => {
         }]
     });
 
-    if (!leadInfo) throw new Error("Lead not found");
+    if (!leadInfo) throw new AppError("Lead not found", StatusCodes.NOT_FOUND);
+
+    if (Number(leadInfo.is_show_contact) !== 1) {
+        throw new AppError("Please buy a plan to open contact", StatusCodes.BAD_REQUEST);
+    }
 
 
     if (leadInfo.is_contact_viewed === 0) {
