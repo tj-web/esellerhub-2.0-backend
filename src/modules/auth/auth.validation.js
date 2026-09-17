@@ -1,4 +1,4 @@
-import { body, query, validationResult } from "express-validator";
+import { body, query, param, validationResult } from "express-validator";
 import validator from "validator";
 
 const validateRequest = (req, res, next) => {
@@ -213,6 +213,13 @@ export const validateSignup = [
 
 export const validateVerifyEmail = [
     query("token").notEmpty().withMessage("Token is required").trim(),
+    validateRequest,
+];
+
+// ***************************************************************
+
+export const validateAutoLogin = [
+    param("token").notEmpty().withMessage("Token is required"),
     validateRequest,
 ];
 

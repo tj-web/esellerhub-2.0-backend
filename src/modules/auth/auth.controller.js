@@ -16,6 +16,7 @@ import {
   handleForgotPassword,
   handleChangePassword,
   logoutService,
+  autoLoginService,
 } from "./auth.service.js";
 import LoginHistory from "../../models/loginHistory.model.js";
 import engagementEvent from "../../helpers/engagementEvent.js";
@@ -80,6 +81,60 @@ export const login = async (req, res, next) => {
   } catch (error) {
     console.error("Login Error:", error);
     if (error.statusCode === 400 || error.statusCode === 403) {
+      return res
+        .status(StatusCodes.BAD_REQUEST)
+        .json(SystemResponse.badRequestError(error.message));
+    }
+    return res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json(SystemResponse.internalServerError(error.message || "Internal Server Error"));
+  }
+};
+
+/* ======================================================
+   AUTO LOGIN FUNCTION (magic link)
+ ====================================================== */
+export const autoLogin = async (req, res, next) => {
+  const { token } = req.params;
+
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress;
+  const deviceId = req.headers["x-device-id"] || null;
+
+  try {
+    const result = await autoLoginService(token, ip, deviceId);
+
+    const isProd = process.env.NODE_ENV === "production";
+    res.cookie("access_token", result.accessToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: "lax",
+      maxAge: 15 * 60 * 1000,
+    });
+
+    res.cookie("refresh_token", result.refreshToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: "lax",
+      maxAge: 10 * 24 * 60 * 60 * 1000,
+    });
+
+    return res.status(StatusCodes.SUCCESS).json(
+      SystemResponse.success("Login successful", {
+        id: result.user.vendor_id,
+        email: result.user.email,
+        name: `${result.user.Vendor?.first_name} ${result.user.Vendor?.last_name}`,
+        vendor_mode: result.user.Vendor?.vendor_mode ?? 0,
+        redirect_uri: result.redirect_uri,
+      })
+    );
+  } catch (error) {
+    console.error("AutoLogin Error:", error);
+    if (error.statusCode === 403) {
+      return res
+        .status(StatusCodes.FORBIDDEN)
+        .json(SystemResponse.forbiddenError(error.message));
+    }
+    if (error.statusCode && error.statusCode < 500) {
       return res
         .status(StatusCodes.BAD_REQUEST)
         .json(SystemResponse.badRequestError(error.message));
