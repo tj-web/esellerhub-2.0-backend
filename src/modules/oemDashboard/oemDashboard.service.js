@@ -27,24 +27,33 @@ const CURRENT_PLAN_EXISTS_FOR_LEAD = `
 `;
 
 /**
- * Builds the shared vendor/product/plan-scope WHERE fragment + replacements
- * used by the visibility_pool_daily queries below. `alias` is the
- * oms_pi_details table alias (already joined there via pi_id).
+ * visibility_pool_daily has two independent write paths (tj-impressions-app
+ * job/visibilityStage.js): "paid" rows carry a real pi_id tied to a vendor's
+ * plan; "non-paid" rows (pi_id = 0) are computed per product+brand+category
+ * for any onboarded-brand product with no active plan, with NO vendor_id
+ * involved at all,
+ * non-paid visibility is never computed per-vendor in the first place.
  */
-const buildPlanScopeClause = ({ product_id, plan_scope }, alias = "d") => {
-    const clauses = [];
-    const replacements = {};
+const VENDOR_PRODUCT_IDS_SUBQUERY = `
+    SELECT p.product_id FROM oms_pi_products p
+    JOIN oms_pi_details d ON d.id = p.pi_id
+    WHERE d.vendor_id = :vendor_id
+`;
 
-    if (product_id) {
-        replacements.product_id = product_id;
-    }
-
-    if (plan_scope === "current") {
-        clauses.push(`${alias}.pi_status = 3 AND CURDATE() BETWEEN ${alias}.start_date AND ${alias}.end_date`);
-    }
-
-    return { clauses, replacements };
-};
+/**
+ * "Current plan only" only ever means a real paid plan - non-paid rows
+ * (pi_id = 0) never match this (there's no oms_pi_details row with id = 0),
+ * so they're correctly excluded whenever this clause is applied.
+ */
+const CURRENT_PLAN_EXISTS_FOR_POOL = `
+    EXISTS (
+        SELECT 1 FROM oms_pi_details d
+        WHERE d.id = v.pi_id
+          AND d.vendor_id = :vendor_id
+          AND d.pi_status = 3
+          AND CURDATE() BETWEEN d.start_date AND d.end_date
+    )
+`;
 
 const daysBetween = (date_from, date_to) => {
     const from = new Date(date_from);
@@ -85,8 +94,7 @@ export const getVendorProducts = async (vendor_id) => {
                 (
                     SELECT COUNT(DISTINCT v.report_date)
                     FROM ${ANALYTICS_DB}.visibility_pool_daily v
-                    JOIN oms_pi_details d2 ON d2.id = v.pi_id
-                    WHERE d2.vendor_id = :vendor_id AND v.product_id = p.product_id
+                    WHERE v.product_id = p.product_id
                 ) AS days_of_data
             FROM oms_pi_products p
             JOIN oms_pi_details d ON d.id = p.pi_id
@@ -104,19 +112,16 @@ export const getVendorProducts = async (vendor_id) => {
 };
 
 const getPoolTotals = async (vendor_id, filters) => {
-    const { clauses, replacements } = buildPlanScopeClause(filters);
     const query = `
         SELECT COALESCE(SUM(v.visibility_pool), 0) AS impressions, COALESCE(SUM(v.clicks), 0) AS clicks
         FROM ${ANALYTICS_DB}.visibility_pool_daily v
-        JOIN oms_pi_details d ON d.id = v.pi_id
-        JOIN oms_pi_products p ON p.pi_id = d.id AND p.product_id = v.product_id
-        WHERE d.vendor_id = :vendor_id
-          AND v.report_date BETWEEN :date_from AND :date_to
+        WHERE v.report_date BETWEEN :date_from AND :date_to
+          AND v.product_id IN (${VENDOR_PRODUCT_IDS_SUBQUERY})
           ${filters.product_id ? "AND v.product_id = :product_id" : ""}
-          ${clauses.map((c) => `AND ${c}`).join(" ")}
+          ${filters.plan_scope === "current" ? `AND ${CURRENT_PLAN_EXISTS_FOR_POOL}` : ""}
     `;
     const [row] = await sequelize.query(query, {
-        replacements: { vendor_id, date_from: filters.date_from, date_to: filters.date_to, ...replacements },
+        replacements: { vendor_id, date_from: filters.date_from, date_to: filters.date_to, product_id: filters.product_id },
         type: QueryTypes.SELECT,
     });
     return { impressions: Number(row.impressions), clicks: Number(row.clicks) };
@@ -206,20 +211,18 @@ export const getSummary = async (vendor_id, filters) => {
  */
 export const getImpressionsTrend = async (vendor_id, filters) => {
     try {
-        const { clauses, replacements } = buildPlanScopeClause(filters);
         const query = `
             SELECT v.report_date AS date, SUM(v.visibility_pool) AS impressions, SUM(v.clicks) AS clicks
             FROM ${ANALYTICS_DB}.visibility_pool_daily v
-            LEFT JOIN oms_pi_details d ON d.id = v.pi_id AND d.vendor_id = :vendor_id
-            LEFT JOIN oms_pi_products p ON p.pi_id = d.id AND p.product_id = v.product_id
             WHERE v.report_date BETWEEN :date_from AND :date_to
+              AND v.product_id IN (${VENDOR_PRODUCT_IDS_SUBQUERY})
               ${filters.product_id ? "AND v.product_id = :product_id" : ""}
-              ${clauses.map((c) => `AND ${c}`).join(" ")}
+              ${filters.plan_scope === "current" ? `AND ${CURRENT_PLAN_EXISTS_FOR_POOL}` : ""}
             GROUP BY v.report_date
             ORDER BY v.report_date
         `;
         const rows = await sequelize.query(query, {
-            replacements: { vendor_id, date_from: filters.date_from, date_to: filters.date_to, ...replacements },
+            replacements: { vendor_id, date_from: filters.date_from, date_to: filters.date_to, product_id: filters.product_id },
             type: QueryTypes.SELECT,
         });
 
