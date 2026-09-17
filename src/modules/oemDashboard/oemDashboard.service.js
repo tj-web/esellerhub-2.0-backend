@@ -98,7 +98,11 @@ export const getVendorProducts = async (vendor_id) => {
                 ) AS days_of_data
             FROM oms_pi_products p
             JOIN oms_pi_details d ON d.id = p.pi_id
+            JOIN tbl_product tp ON tp.product_id = p.product_id
             WHERE d.vendor_id = :vendor_id
+            AND tp.status = 1
+            AND tp.show_status = 1
+            AND tp.is_deleted = 0
             GROUP BY p.product_id
             ORDER BY product_name
         `;
