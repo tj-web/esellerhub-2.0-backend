@@ -2900,7 +2900,7 @@ export const getLeadCompetiterInsights = async (vendor_id, lead_id) => {
                 },
                 raw: true
             });
-
+console.log(`siblingProducts`, siblingProducts);
             addUniqueProducts(productsMap, siblingProducts);
         }
 
@@ -2918,7 +2918,7 @@ export const getLeadCompetiterInsights = async (vendor_id, lead_id) => {
                 limit: remainingSlots,
                 raw: true
             });
-
+console.log(`topAlternatives`, topAlternatives);
             if (topAlternatives.length) {
                 const alternateProducts = await TblProduct.findAll({
                     attributes: ['product_id', 'product_name'],
@@ -2927,7 +2927,7 @@ export const getLeadCompetiterInsights = async (vendor_id, lead_id) => {
                     },
                     raw: true
                 });
-
+console.log(`alternateProducts`,alternateProducts);
                 addUniqueProducts(productsMap, alternateProducts);
             }
         }
