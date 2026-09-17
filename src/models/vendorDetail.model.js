@@ -169,11 +169,7 @@ const VendorDetails = sequelize.define(
     },
     callback_duration: {
       type: DataTypes.STRING(10),
-    },
-    software_provider: {
-      type: DataTypes.TINYINT(1),
-      defaultValue: 0,
-    },
+    }
   },
   {
     tableName: "vendor_details",
