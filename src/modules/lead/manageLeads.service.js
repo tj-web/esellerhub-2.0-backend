@@ -2789,7 +2789,7 @@ export const getLeadCompetiterInsights = async (vendor_id, lead_id) => {
         //     ?.map(item => item.guuid)
         //     ?.filter(Boolean);
 
-        // let relatedProducts = [];
+        let relatedProducts = [];
 
         // if (guuids?.length) {
 
