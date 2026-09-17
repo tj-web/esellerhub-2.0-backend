@@ -217,16 +217,18 @@ export const getReviewsData = async (vendor_id, query) => {
       return { reviews: [], total: 0, overall_stats: null };
     }
 
-    const whereClause = {
+    const baseWhereClause = {
       product_id: { [Op.in]: productIds },
       status: 1,
       is_deleted: 0,
     };
 
+    const listWhereClause = { ...baseWhereClause };
+
     // Apply Search Filters
     if (rating) {
       const ratingFloor = Math.floor(rating);
-      whereClause[Op.and] = [
+      listWhereClause[Op.and] = [
         literal(
           `(ROUND(Review.rating) = ${ratingFloor} OR (Review.rating >= ${ratingFloor} AND Review.rating < ${ratingFloor + 1}))`
         ),
@@ -234,7 +236,7 @@ export const getReviewsData = async (vendor_id, query) => {
     }
 
     if (date) {
-      whereClause.created_at = {
+      listWhereClause.created_at = {
         [Op.gte]: new Date(date),
         [Op.lt]: new Date(new Date(date).getTime() + 24 * 60 * 60 * 1000),
       };
@@ -242,7 +244,7 @@ export const getReviewsData = async (vendor_id, query) => {
 
     // 1. Fetch Overall Aggregates (Star Distribution + Sub-ratings)
     const starCounts = await Review.findAll({
-      where: whereClause,
+      where: baseWhereClause,
       attributes: [
         [literal("ROUND(rating)"), "star"],
         [fn("COUNT", col("review_id")), "count"],
@@ -259,7 +261,7 @@ export const getReviewsData = async (vendor_id, query) => {
 
     // Sub-ratings average directly from Review rows
     const ratingAgg = await Review.findOne({
-      where: whereClause,
+      where: baseWhereClause,
       attributes: [
         [fn("COUNT", col("review_id")), "total"],
         [fn("AVG", col("rating")), "rating"],
@@ -306,7 +308,7 @@ export const getReviewsData = async (vendor_id, query) => {
     };
 
     const { rows: reviews, count: total } = await Review.findAndCountAll({
-      where: whereClause,
+      where: listWhereClause,
       include: [
         {
           model: ReviewReplies,
