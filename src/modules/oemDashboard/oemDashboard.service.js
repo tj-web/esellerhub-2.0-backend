@@ -210,10 +210,9 @@ export const getImpressionsTrend = async (vendor_id, filters) => {
         const query = `
             SELECT v.report_date AS date, SUM(v.visibility_pool) AS impressions, SUM(v.clicks) AS clicks
             FROM ${ANALYTICS_DB}.visibility_pool_daily v
-            JOIN oms_pi_details d ON d.id = v.pi_id
-            JOIN oms_pi_products p ON p.pi_id = d.id AND p.product_id = v.product_id
-            WHERE d.vendor_id = :vendor_id
-              AND v.report_date BETWEEN :date_from AND :date_to
+            LEFT JOIN oms_pi_details d ON d.id = v.pi_id AND d.vendor_id = :vendor_id
+            LEFT JOIN oms_pi_products p ON p.pi_id = d.id AND p.product_id = v.product_id
+            WHERE v.report_date BETWEEN :date_from AND :date_to
               ${filters.product_id ? "AND v.product_id = :product_id" : ""}
               ${clauses.map((c) => `AND ${c}`).join(" ")}
             GROUP BY v.report_date
